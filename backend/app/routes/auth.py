@@ -1,27 +1,46 @@
+# app/routes/auth.py
+# frontend chl reha? sign in vgera?dekhna pyu
 from flask import Blueprint, request, jsonify, current_app
 from ..models.user import UserModel
-from werkzeug.utils import secure_filename
+from ..models.project import ProjectModel 
 from ..utils.email_service import send_verification_email
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, JWTManager
+from flask_jwt_extended import (
+    create_access_token, 
+    create_refresh_token, 
+    jwt_required, 
+    get_jwt_identity, 
+    JWTManager
+)
 import random
 import string
+import re
 import bcrypt
 import os
+from werkzeug.utils import secure_filename
+
+# Set the upload folder path
+UPLOAD_FOLDER = './uploads'
+
+# Allowed file extensions for project uploads
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'docx'}
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api')
 
-# Configure upload folder
-UPLOAD_FOLDER = 'uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Sample storage for projects (in-memory or can be replaced with MongoDB)
-projects = []
+# Create the upload directory if it doesn't exist
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    """Check if the file has an allowed extension."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @auth_bp.route('/signup', methods=['POST'])
 def signup():
     try:
         data = request.get_json()
         if not data:
+            current_app.logger.error('Signup failed: No input data provided')
             return jsonify({'error': 'No input data provided'}), 400
 
         username = data.get('username')
@@ -31,19 +50,36 @@ def signup():
 
         # Basic validation
         if not all([username, email, password, confirm_password]):
-            return jsonify({'error': 'All fields are required'}), 400
+            missing_fields = [field for field in ['username', 'email', 'password', 'confirmPassword'] if not data.get(field)]
+            current_app.logger.error(f"Signup failed: Missing fields - {', '.join(missing_fields)}")
+            return jsonify({'error': f"Missing fields: {', '.join(missing_fields)}"}), 400
 
         if password != confirm_password:
+            current_app.logger.error('Signup failed: Passwords do not match')
             return jsonify({'error': 'Passwords do not match'}), 400
+
+        if len(password) < 6:
+            current_app.logger.error('Signup failed: Password too short')
+            return jsonify({'error': 'Password must be at least 6 characters long'}), 400
+
+        # Email format validation
+        email_regex = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+        if not re.match(email_regex, email):
+            current_app.logger.error('Signup failed: Invalid email format')
+            return jsonify({'error': 'Invalid email format'}), 400
 
         # Check if user already exists
         existing_user = UserModel.find_by_email(email)
         if existing_user:
+            current_app.logger.error('Signup failed: User already exists')
             return jsonify({'error': 'User already exists'}), 400
-
+        else:
+            print("yo")
+            
         # Create user
         user = UserModel.create_user(username, email, password)
         if not user:
+            current_app.logger.error('Signup failed: User creation unsuccessful')
             return jsonify({'error': 'Failed to create user'}), 500
 
         # Generate verification code
@@ -52,48 +88,52 @@ def signup():
         # Send verification email
         if send_verification_email(email, verification_code):
             UserModel.update_verification_code(email, verification_code)
+            current_app.logger.info(f"Signup successful: Verification email sent to {email}")
             return jsonify({
                 'message': 'User created successfully. A verification code has been sent to your email. Please verify your email to continue.'
             }), 201
         else:
+            current_app.logger.error('Signup failed: Error sending verification email')
             return jsonify({'error': 'Error sending verification code'}), 500
 
     except Exception as e:
-        current_app.logger.error(f"Signup error: {e}")
+        current_app.logger.error(f"Signup encountered an unexpected error: {e}")
         return jsonify({'error': 'Internal Server Error'}), 500
 
 @auth_bp.route('/signin', methods=['POST'])
 def signin():
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No input data provided'}), 400
-
+        data = request.get_json() or {}
         email = data.get('email')
         password = data.get('password')
 
         if not all([email, password]):
+            current_app.logger.error('Signin failed: Email and password are required')
             return jsonify({'error': 'Email and password are required'}), 400
 
-        # Find user
         user = UserModel.find_by_email(email)
-        if not user:
+        if not user or not bcrypt.checkpw(password.encode('utf-8'), user['password']):
+            current_app.logger.error('Signin failed: Invalid email or password')
             return jsonify({'error': 'Invalid email or password'}), 401
 
-        
-        # Check password
-        if not bcrypt.checkpw(password.encode('utf-8'), user['password']):
-            return jsonify({'error': 'Invalid email or password'}), 401
+        # Check if user email is verified
+        if not user.get('is_verified'):
+            current_app.logger.error('Signin failed: Email not verified')
+            return jsonify({'error': 'Email not verified. Please verify your email before signing in.'}), 401
 
-        # Create a new access token
         access_token = create_access_token(identity=user['id'])
+        refresh_token = create_refresh_token(identity=user['id'])  # Include refresh token
 
-        return jsonify({'message': 'Signed in successfully', 'access_token': access_token}), 200
+        current_app.logger.info(f"Signin successful: User {email} logged in")
+        return jsonify({
+            'message': 'Signed in successfully',
+            'access_token': access_token,
+            'refresh_token': refresh_token
+        }), 200
 
     except Exception as e:
-        current_app.logger.error(f"Signin error: {e}")
+        current_app.logger.error(f"Signin encountered an unexpected error: {e}")
         return jsonify({'error': 'Internal Server Error'}), 500
-
 
 @auth_bp.route('/emailverification', methods=['POST'])
 def email_verification():
@@ -101,19 +141,26 @@ def email_verification():
     try:
         data = request.get_json()
         if not data:
+            current_app.logger.error('Email verification failed: No input data provided')
             return jsonify({'error': 'No input data provided'}), 400
 
         email = data.get('email')
         verification_code = data.get('verification_code')
 
+        if not all([email, verification_code]):
+            current_app.logger.error('Email verification failed: Missing fields')
+            return jsonify({'error': 'Email and verification code are required'}), 400
+
         # Verify user
         if UserModel.verify_user(email, verification_code):
+            current_app.logger.info(f"Email verification successful for {email}")
             return jsonify({'message': 'Email verified successfully'}), 200
         else:
+            current_app.logger.error('Email verification failed: Invalid verification code')
             return jsonify({'error': 'Invalid verification code'}), 400
 
     except Exception as e:
-        current_app.logger.error(f"Email verification error: {e}")
+        current_app.logger.error(f"Email verification encountered an unexpected error: {e}")
         return jsonify({'error': 'Internal Server Error'}), 500
 
 @auth_bp.route('/request-email-verification', methods=['POST'])
@@ -123,8 +170,13 @@ def request_email_verification():
         data = request.get_json()
         email = data.get('email')
 
+        if not email:
+            current_app.logger.error('Request email verification failed: Email is required')
+            return jsonify({'error': 'Email is required'}), 400
+
         user = UserModel.find_by_email(email)
         if not user:
+            current_app.logger.error('Request email verification failed: Email not found')
             return jsonify({'error': 'Email not found'}), 404
 
         # Generate verification code
@@ -133,12 +185,14 @@ def request_email_verification():
         # Send verification email
         if send_verification_email(email, verification_code):
             UserModel.update_verification_code(email, verification_code)
+            current_app.logger.info(f"Verification code re-sent to {email}")
             return jsonify({'message': 'Verification code sent'}), 200
         else:
+            current_app.logger.error('Request email verification failed: Error sending verification code')
             return jsonify({'error': 'Error sending verification code'}), 500
 
     except Exception as e:
-        current_app.logger.error(f"Request email verification error: {e}")
+        current_app.logger.error(f"Request email verification encountered an unexpected error: {e}")
         return jsonify({'error': 'Internal Server Error'}), 500
 
 @auth_bp.route('/forgot-password', methods=['POST'])
@@ -148,9 +202,14 @@ def forgot_password():
         data = request.get_json()
         email = data.get('email')
 
+        if not email:
+            current_app.logger.error('Forgot password failed: Email is required')
+            return jsonify({"error": "Email is required"}), 400
+
         user = UserModel.find_by_email(email)
         if not user:
-            return jsonify({"msg": "Email not found"}), 404
+            current_app.logger.error('Forgot password failed: Email not found')
+            return jsonify({"error": "Email not found"}), 404
 
         # Generate verification code
         verification_code = ''.join(random.choices(string.digits, k=6))
@@ -158,12 +217,14 @@ def forgot_password():
         # Send verification email
         if send_verification_email(email, verification_code):
             UserModel.update_verification_code(email, verification_code)
-            return jsonify({"msg": "Verification code sent"}), 200
+            current_app.logger.info(f"Forgot password: Verification code sent to {email}")
+            return jsonify({"message": "Verification code sent"}), 200
         else:
-            return jsonify({"msg": "Error sending verification code"}), 500
+            current_app.logger.error('Forgot password failed: Error sending verification code')
+            return jsonify({"error": "Error sending verification code"}), 500
 
     except Exception as e:
-        current_app.logger.error(f"Forgot password error: {e}")
+        current_app.logger.error(f"Forgot password encountered an unexpected error: {e}")
         return jsonify({'error': 'Internal Server Error'}), 500
 
 @auth_bp.route('/reset-password', methods=['POST'])
@@ -177,23 +238,31 @@ def reset_password():
         confirm_password = data.get('confirm_password')
 
         if not all([email, verification_code, new_password, confirm_password]):
-            return jsonify({'error': 'All fields are required'}), 400
+            missing_fields = [field for field in ['email', 'verification_code', 'new_password', 'confirm_password'] if not data.get(field)]
+            current_app.logger.error(f"Reset password failed: Missing fields - {', '.join(missing_fields)}")
+            return jsonify({'error': f"Missing fields: {', '.join(missing_fields)}"}), 400
+
+        if new_password != confirm_password:
+            current_app.logger.error('Reset password failed: Passwords do not match')
+            return jsonify({"error": "Passwords do not match"}), 400
+
+        if len(new_password) < 6:
+            current_app.logger.error('Reset password failed: Password too short')
+            return jsonify({"error": "Password must be at least 6 characters long"}), 400
 
         # Check verification code
         user = UserModel.find_by_email(email)
         if not user or user.get('verification_code') != verification_code:
-            return jsonify({"msg": "Invalid verification code"}), 400
-
-        if new_password != confirm_password:
-            return jsonify({"msg": "Passwords do not match"}), 400
+            current_app.logger.error('Reset password failed: Invalid verification code')
+            return jsonify({"error": "Invalid verification code"}), 400
 
         # Update password
         UserModel.update_password(email, new_password)
-
-        return jsonify({"msg": "Password reset successful"}), 200
+        current_app.logger.info(f"Password reset successful for {email}")
+        return jsonify({"message": "Password reset successful"}), 200
 
     except Exception as e:
-        current_app.logger.error(f"Reset password error: {e}")
+        current_app.logger.error(f"Reset password encountered an unexpected error: {e}")
         return jsonify({'error': 'Internal Server Error'}), 500
 
 @auth_bp.route('/projects', methods=['POST'])
@@ -201,37 +270,38 @@ def reset_password():
 def create_project():
     """Create a new project endpoint."""
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No input data provided'}), 400
-
-        project_name = data.get('title')
-        project_description = data.get('description')
+        # For multipart/form-data, use request.form and request.files
+        title = request.form.get('title')
+        description = request.form.get('description')
         project_files = request.files.getlist('files')
 
-        if not all([project_name, project_description]):
+        if not all([title, description]):
+            current_app.logger.error('Create project failed: Project name and description are required')
             return jsonify({'error': 'Project name and description are required'}), 400
 
-        # Save files if any
+        # Save files if any and collect filenames
         file_paths = []
         for file in project_files:
-            if file:
+            if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
-                file.save(os.path.join(UPLOAD_FOLDER, filename))
+                file.save(os.path.join('uploads', filename))
                 file_paths.append(filename)
+            elif file:
+                current_app.logger.error('Create project failed: File type not allowed')
+                return jsonify({'error': 'File type not allowed'}), 400
 
-        new_project = {
-            'id': len(projects) + 1,
-            'title': project_name,
-            'description': project_description,
-            'files': file_paths,
-        }
-        projects.append(new_project)
-
-        return jsonify({'message': 'Project created successfully', 'project': new_project}), 201
+        # Create project in the database
+        # Assuming you have a ProjectModel similar to UserModel
+        project = ProjectModel.create_project(title, description, file_paths)
+        if project:
+            current_app.logge+r.info(f"Project '{title}' created successfully")
+            return jsonify({'message': 'Project created successfully', 'project': project}), 201
+        else:
+            current_app.logger.error('Create project failed: Project creation unsuccessful')
+            return jsonify({'error': 'Failed to create project'}), 500
 
     except Exception as e:
-        current_app.logger.error(f"Create project error: {e}")
+        current_app.logger.error(f"Create project encountered an unexpected error: {e}")
         return jsonify({'error': 'Internal Server Error'}), 500
 
 @auth_bp.route('/projects', methods=['GET'])
@@ -239,40 +309,77 @@ def create_project():
 def get_projects():
     """Get all projects endpoint."""
     try:
+        # Assuming you have a ProjectModel similar to UserModel
+        projects = ProjectModel.get_all_projects()
+        current_app.logger.info('Retrieved all projects successfully')
         return jsonify(projects), 200
     except Exception as e:
-        current_app.logger.error(f"Get projects error: {e}")
+        current_app.logger.error(f"Get projects encountered an unexpected error: {e}")
         return jsonify({'error': 'Internal Server Error'}), 500
 
 @auth_bp.route('/token/refresh', methods=['POST'])
 @jwt_required(refresh=True)
 def refresh_token():
     """Refresh JWT token endpoint."""
-    current_user_id = get_jwt_identity()
-    new_token = create_access_token(identity=current_user_id)
-    return jsonify(access_token=new_token), 200
+    try:
+        current_user_id = get_jwt_identity()
+        new_access_token = create_access_token(identity=current_user_id)
+        current_app.logger.info(f"Access token refreshed for user ID: {current_user_id}")
+        return jsonify({'access_token': new_access_token}), 200
+    except Exception as e:
+        current_app.logger.error(f"Token refresh encountered an unexpected error: {e}")
+        return jsonify({'error': 'Internal Server Error'}), 500
 
-# Example of using jwt_required decorator
 @auth_bp.route('/protected', methods=['GET'])
 @jwt_required()
 def protected():
     """Protected route example."""
-    return jsonify({'msg': 'This is a protected route'}), 200
+    try:
+        current_user_id = get_jwt_identity()
+        current_app.logger.info(f"Protected route accessed by user ID: {current_user_id}")
+        return jsonify({'msg': 'This is a protected route'}), 200
+    except Exception as e:
+        current_app.logger.error(f"Protected route encountered an unexpected error: {e}")
+        return jsonify({'error': 'Internal Server Error'}), 500
+    
 
-#  the JWT loader decorators 
+
+
+# Route to handle file upload
+@auth_bp.route('/upload', methods=['POST'])
+@jwt_required()
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part in the request'}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'error': 'No file selected for uploading'}), 400
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)  # Secure the filename
+        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        file.save(file_path)  # Save the file to the server
+        
+        return jsonify({'message': 'File successfully uploaded', 'file_path': file_path}), 200
+    
+    return jsonify({'error': 'File type is not allowed'}), 400
+
+# Register JWT Handlers
 def register_jwt_handlers(jwt: JWTManager):
     @jwt.unauthorized_loader
     def unauthorized_response(callback):
         return jsonify({'error': 'Missing Authorization Header'}), 401
 
     @jwt.expired_token_loader
-    def expired_token_callback():
+    def expired_token_callback(jwt_header, jwt_payload):
         return jsonify({'error': 'The token has expired'}), 401
 
     @jwt.invalid_token_loader
     def invalid_token_callback(error):
         return jsonify({'error': 'Invalid token'}), 401
 
-    @jwt.unauthorized_loader
-    def unauthorized_callback(error):
-        return jsonify({'error': 'Missing or invalid JWT'}), 401
+    @jwt.needs_fresh_token_loader
+    def needs_fresh_token_callback():
+        return jsonify({'error': 'Fresh token required'}), 401

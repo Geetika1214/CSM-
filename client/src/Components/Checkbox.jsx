@@ -1,15 +1,21 @@
+// src/Components/Checkbox.jsx
 
-const Checkbox = ({ label }) => {
+import React from 'react';
+
+const Checkbox = ({ name, label, checked, onChange }) => {
   return (
-    <div className=" flex items-center space-x-2 p-3 ">
-      <input 
-      type="checkbox"
-      className="w-4 h-4 text-slate-700 bg-white-100
-       rounded border-gray-300 focus:ring-slate-700"
-       />
-       <label className="text-sm text-blue-900 font-semibold">{label}</label>
-    </div>
-  )
-}
+    <label className="flex items-center">
+      <input
+        type="checkbox"
+        name={name}
+        checked={checked}
+        onChange={onChange}
+        className="form-checkbox h-5 w-5 text-blue-600"
+        aria-labelledby={`${name}-label`} // Accessibility improvement
+      />
+      <span id={`${name}-label`} className="ml-2 text-gray-700">{label}</span>
+    </label>
+  );
+};
 
 export default Checkbox;

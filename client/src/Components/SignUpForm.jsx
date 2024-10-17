@@ -1,10 +1,8 @@
-// SignUpForm.js
-
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import InputField from './InputField';
 import Checkbox from './Checkbox';
 import Button from './Button';
-import axios from 'axios';
+import { AuthContext } from '../context/AuthProvider'; // Import AuthContext
 
 const SignUpForm = () => {
   const [formData, setFormData] = useState({
@@ -12,30 +10,48 @@ const SignUpForm = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    agree: false,
   });
 
+  const [agree, setAgree] = useState(false);
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const { register } = useContext(AuthContext); // Access register method from AuthProvider
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
     setFormData((prevData) => ({
       ...prevData,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: value,
     }));
+  };
+
+  const handleCheckboxChange = (e) => {
+    setAgree(e.target.checked);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setMessage('');
 
     // Basic front-end validations
-    if (
-      !formData.username ||
-      !formData.email ||
-      !formData.password ||
-      !formData.confirmPassword
-    ) {
-      setMessage('All fields are required');
+    if (!formData.username) {
+      setMessage('Username is required');
+      return;
+    }
+
+    if (!formData.email) {
+      setMessage('Email is required');
+      return;
+    }
+
+    if (!formData.password) {
+      setMessage('Password is required');
+      return;
+    }
+
+    if (!formData.confirmPassword) {
+      setMessage('Please confirm your password');
       return;
     }
 
@@ -44,29 +60,26 @@ const SignUpForm = () => {
       return;
     }
 
-    if (!formData.agree) {
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(formData.email)) {
+      setMessage('Please enter a valid email address');
+      return;
+    }
+
+    if (!agree) {
       setMessage('You must agree to the terms and conditions');
       return;
     }
 
-    try {
-      const response = await axios.post('http://127.0.0.1:5000/api/signup', {
-        username: formData.username,
-        email: formData.email,
-        password: formData.password,
-        confirmPassword: formData.confirmPassword,
-      });
+    setLoading(true);
 
-      if (response.status === 201) {
-        setMessage('Signup successful! Please verify your email.');
-        // Redirect or perform other actions as needed
-      }
+    try {
+      await register(formData.username, formData.email, formData.password);
+      setMessage('Registration successful!'); // Success message
     } catch (error) {
-      if (error.response && error.response.data && error.response.data.error) {
-        setMessage(error.response.data.error);
-      } else {
-        setMessage('An error occurred. Please try again.');
-      }
+      setMessage(error.message || 'An error occurred during signup. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -81,59 +94,68 @@ const SignUpForm = () => {
         {/* Username Input */}
         <InputField
           type="text"
-          name="username"
+          name="username" // Ensure name is provided
+          id="username" // Ensure id is provided
           placeholder="Username"
           value={formData.username}
           onChange={handleChange}
-          className="border border-gray-300 rounded-lg p-3 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300 ease-in-out"
+          required
         />
 
         {/* Email Input */}
         <InputField
           type="email"
-          name="email"
+          name="email" // Ensure name is provided
+          id="email" // Ensure id is provided
           placeholder="example@gmail.com"
           value={formData.email}
           onChange={handleChange}
-          className="border border-gray-300 rounded-lg p-3 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300 ease-in-out"
+          required
         />
 
         {/* Password Input */}
         <InputField
           type="password"
-          name="password"
+          name="password" // Ensure name is provided
+          id="password" // Ensure id is provided
           placeholder="Password"
           value={formData.password}
           onChange={handleChange}
-          className="border border-gray-300 rounded-lg p-3 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300 ease-in-out"
+          required
         />
 
         {/* Confirm Password Input */}
         <InputField
           type="password"
-          name="confirmPassword"
+          name="confirmPassword" // Ensure name is provided
+          id="confirmPassword" // Ensure id is provided
           placeholder="Confirm Password"
           value={formData.confirmPassword}
           onChange={handleChange}
-          className="border border-gray-300 rounded-lg p-3 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300 ease-in-out"
+          required
         />
 
-        {/* Checkbox */}
+        {/* Checkbox for Terms */}
         <div className="flex items-center">
           <Checkbox
             name="agree"
             label="Agree to Our Terms and Conditions"
-            checked={formData.agree}
-            onChange={handleChange}
+            checked={agree}
+            onChange={handleCheckboxChange}
           />
         </div>
 
         {/* Submit Button */}
-        <Button text="Continue" type="submit"  path="/"/>
+        <Button 
+          text={loading ? "Processing..." : "Continue"} 
+          type="submit"
+          className="bg-slate-700 text-white w-full"
+          disabled={loading} 
+        />
 
         {/* Message Display */}
         {message && (
-          <p className="text-center text-red-600">
+          <p className={`text-center ${message.includes('error') ? 'text-red-600' : 'text-green-600'}`}>
             {message}
           </p>
         )}

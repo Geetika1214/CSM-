@@ -1,9 +1,17 @@
 import React, { useState } from "react";
 import { FaEdit } from "react-icons/fa"; // Import FaEdit icon from react-icons
 import Toolbar from "../Components/Toolbar";
+import UploadInputField from "../Components/UploadInputField"; // Import your UploadInputField
+import UploadButton from "../Components/UploadButton"; // Import your UploadButton
 
 export const Account = () => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+
+  const handleSaveChanges = () => {
+    // Logic to handle saving changes
+    console.log("Saving changes:", { name, email });
+  };
 
   return (
     <div id="webcrumbs" className="flex flex-col sm:flex-row h-screen">
@@ -25,43 +33,34 @@ export const Account = () => {
           <div className="bg-white rounded-lg shadow-lg p-6 md:p-8">
             {/* Name Field */}
             <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Name
-              </label>
-              <div className="flex items-center border border-gray-300 rounded-md bg-white">
-                <input
-                  type="text"
-                  className="w-full py-2 px-4 text-base rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  placeholder="Enter your full name"
-                />
-                <span className="p-2 bg-gray-100 rounded-r-md">
-                  <FaEdit className="text-gray-600" /> {/* Using FaEdit icon */}
-                </span>
-              </div>
+              <UploadInputField 
+                label="Name" 
+                value={name} 
+                onChange={(e) => setName(e.target.value)} 
+                placeholder="Enter your full name" 
+                id="name" 
+              />
             </div>
 
             {/* Email Field */}
             <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Email
-              </label>
-              <div className="flex items-center border border-gray-300 rounded-md bg-white">
-                <input
-                  type="email"
-                  className="w-full py-2 px-4 text-base rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  placeholder="Enter your email"
-            />
-                <span className="p-2 bg-gray-100 rounded-r-md">
-                  <FaEdit className="text-gray-600" /> {/* Using FaEdit icon */}
-                </span>
-              </div>
+              <UploadInputField 
+                label="Email" 
+                type="email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                placeholder="Enter your email" 
+                id="email" 
+              />
             </div>
 
             {/* Save Button */}
             <div className="flex justify-end">
-              <button className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md shadow transition-all">
-                Save Changes
-              </button>
+              <UploadButton 
+                label="Save Changes" 
+                onClick={handleSaveChanges} 
+                className="bg-blue-500 text-white" 
+              />
             </div>
           </div>
         </div>
@@ -69,5 +68,5 @@ export const Account = () => {
     </div>
   );
 };
-    
+
 export default Account;

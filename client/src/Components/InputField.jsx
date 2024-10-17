@@ -1,17 +1,44 @@
-const InputField = ({ label, type, name, placeholder, value, onChange }) => {
+import React from 'react';
+import PropTypes from 'prop-types';
+
+const InputField = ({ 
+  label, 
+  type = 'text', 
+  value, 
+  onChange, 
+  placeholder = 'Enter value', 
+  id, 
+  name, // Add name prop
+  required = false 
+}) => {
   return (
-    <div>
-      <label className="block text-sm text-gray-700">{label}</label>
+    <div className="space-y-2">
+      <label htmlFor={id} className="block text-gray-700">
+        {label}
+      </label>
       <input
+        id={id}
+        name={name} // Use the name prop
         type={type}
-        name={name} // Add the name prop here
+        value={value}
+        onChange={onChange}
         placeholder={placeholder}
-        value={value} // Bind the value to the parent component's state
-        onChange={onChange} // Trigger the onChange event to update state
-        className="w-full mt-2 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+        required={required}
+        className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
       />
     </div>
   );
+};
+
+InputField.propTypes = {
+  label: PropTypes.string,
+  type: PropTypes.string,
+  value: PropTypes.string.isRequired,
+  onChange: PropTypes.func.isRequired,
+  placeholder: PropTypes.string,
+  id: PropTypes.string.isRequired, 
+  name: PropTypes.string.isRequired, 
+  required: PropTypes.bool,
 };
 
 export default InputField;

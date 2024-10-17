@@ -1,39 +1,43 @@
-// Components/FileButtons.jsx
-import React from "react";
-import { FaUpload, FaDownload } from "react-icons/fa"; // Importing React Icons
+// src/Components/FileButtons.jsx
 
-const FileButtons = () => {
-  const handleUpload = () => {
-    // Your upload logic here
-    alert("Upload File functionality goes here");
+import React from 'react';
+import PropTypes from 'prop-types';
+import { FaUpload, FaDownload } from 'react-icons/fa';
+
+const FileButtons = ({ files, setFiles }) => {
+  const handleUploadClick = () => {
+    // Implement file upload logic
   };
 
-  const handleDownload = () => {
-    // Your download logic here
-    alert("Download File functionality goes here");
+  const handleDownloadClick = () => {
+    // Implement file download logic
   };
 
   return (
-    <div className="mt-4 flex flex-col space-y-4"> {/* Stack buttons vertically */}
-      {/* Upload Button */}
+    <div className="mt-6 flex justify-center gap-4">
       <button
-        onClick={handleUpload}
-        className="bg-slate-700 text-white px-4 py-2 rounded-lg flex items-center justify-center hover:bg-blue-700 transition duration-200"
+        onClick={handleUploadClick}
+        className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
+        aria-label="Upload Files"
       >
         <FaUpload className="mr-2" />
-        Upload File
+        Upload Files
       </button>
-
-      {/* Download Button */}
       <button
-        onClick={handleDownload}
-        className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center justify-center hover:bg-green-700 transition duration-200"
+        onClick={handleDownloadClick}
+        className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition"
+        aria-label="Download Files"
       >
         <FaDownload className="mr-2" />
-        Download File
+        Download Files
       </button>
     </div>
   );
+};
+
+FileButtons.propTypes = {
+  files: PropTypes.array.isRequired,
+  setFiles: PropTypes.func.isRequired,
 };
 
 export default FileButtons;

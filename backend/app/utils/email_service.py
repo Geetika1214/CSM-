@@ -4,8 +4,10 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from flask import current_app
+import os
 
 def send_verification_email(email, code):
+    # Email configuration
     sender_email = current_app.config['SENDER_EMAIL']
     sender_password = current_app.config['SENDER_PASSWORD']
     subject = "Email Verification Code"

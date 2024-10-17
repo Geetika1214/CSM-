@@ -1,16 +1,27 @@
+// DescriptionInput.jsx
 import React from "react";
-import Field from "./Field"; // Import Field component
+import PropTypes from "prop-types";
 
 const DescriptionInput = ({ description, setDescription }) => {
   return (
-    <Field
-      type="textarea"
-      label="Description"
-      value={description}
-      onChange={(e) => setDescription(e.target.value)}
-      placeholder="Enter project description here..."
-    />
+    <div className="mb-4">
+      <label htmlFor="description" className="block text-gray-700 text-sm font-bold mb-2">
+        Description:
+      </label>
+      <textarea
+        id="description"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)} // Call setDescription on change
+        className="w-full p-2 border border-gray-300 rounded-md"
+        rows="4"
+      />
+    </div>
   );
+};
+
+DescriptionInput.propTypes = {
+  description: PropTypes.string.isRequired, // Ensure description is passed
+  setDescription: PropTypes.func.isRequired, // Ensure setDescription is passed
 };
 
 export default DescriptionInput;

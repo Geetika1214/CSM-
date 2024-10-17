@@ -27,12 +27,34 @@ const FileUploadPage = () => {
     setFile(selectedFile);
   };
 
-  const handleSubmit = () => {
-    const uploadSuccess = Math.random() > 0.2; // Simulate success/failure
-    setUploadStatus(uploadSuccess ? 'success' : 'error');
-    handleNext();
-  };
 
+  const handleSubmit = async () => {
+    if (!file) return;
+  
+    const formData = new FormData();
+    formData.append('file', file);
+  
+    try {
+      const response = await fetch('http://127.0.0.1:5000/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+  
+      if (response.ok) {
+        const result = await response.json();
+        console.log('File uploaded successfully:', result);
+        setUploadStatus('success');
+        handleNext();  // Move to the next step on success
+      } else {
+        console.error('Upload failed');
+        setUploadStatus('error');
+      }
+    } catch (error) {
+      console.error('Error during file upload:', error);
+      setUploadStatus('error');
+    }
+  };
+  
   const handleRetry = () => {
     setUploadStatus(null);
     setStep(2);
@@ -63,7 +85,10 @@ const FileUploadPage = () => {
               value={fileName}
               onChange={(e) => setFileName(e.target.value)}
               placeholder="Filename"
+              id="file-name"
+              required
             />
+
             <UploadButton
               onClick={handleNext}
               label="Continue"
@@ -76,7 +101,13 @@ const FileUploadPage = () => {
         {/* Step 2: File Selection */}
         {step === 2 && (
           <div className="space-y-4">
-            <UploadInputField type="file" label="Select a File" onChange={handleFileUpload} />
+            <UploadInputField 
+              type="file" 
+              label="Select a File" 
+              onChange={handleFileUpload} 
+              id="file-upload" 
+              required 
+            />
             <div className="flex justify-between space-x-2">
               <UploadButton
                 onClick={handleBack}

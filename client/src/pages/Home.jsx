@@ -1,38 +1,64 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate for navigation
+// src/components/Home.js
+
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Toolbar from '../Components/Toolbar';
 import ProjectContainer from '../Components/ProjectContainer';
+import axios from '../utils/axiosConfig';
 import { FaPlus, FaUpload } from 'react-icons/fa';
 
 export default function Home() {
-  const navigate = useNavigate(); // Initialize navigate
-  const [projects, setProjects] = useState([]); // State to manage projects
+  const navigate = useNavigate();
+  const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState('');
-  const [isCreatingProject, setIsCreatingProject] = useState(false); // New state for project creation
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [projectName, setProjectName] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
   const [projectFiles, setProjectFiles] = useState(null);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
 
   const handleProjectChange = (event) => {
     setSelectedProject(event.target.value);
   };
 
   const handleNewProject = () => {
-    setIsCreatingProject(true); // Show the project creation form
+    setIsCreatingProject(true);
   };
 
-  const handleCreateProject = (e) => {
+  const handleCreateProject = async (e) => {
     e.preventDefault();
-    const newProject = {
-      id: projects.length + 1,
-      title: projectName,
-      description: projectDescription,
-      files: projectFiles,
-    };
+    setError('');
+    setMessage('');
 
-    setProjects([...projects, newProject]); // Update projects state
-    resetForm(); // Reset the form after creating the project
-    setIsCreatingProject(false); // Go back to project listing
+    const formData = new FormData();
+    formData.append('title', projectName);
+    formData.append('description', projectDescription);
+
+    if (projectFiles) {
+      for (let i = 0; i < projectFiles.length; i++) {
+        formData.append('files', projectFiles[i]);
+      }
+    }
+
+
+    try {
+      const response = await axios.post('/api/projects', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      setProjects([...projects, response.data.project]);
+      resetForm();
+      setIsCreatingProject(false);
+      setMessage(response.data.message);
+    } catch (err) {
+      if (err.response) {
+        setError(err.response.data.error);
+      } else {
+        setError('An unexpected error occurred');
+      }
+    }
   };
 
   const resetForm = () => {
@@ -42,14 +68,30 @@ export default function Home() {
   };
 
   const handleFileUpload = (event) => {
-    setProjectFiles(event.target.files); // Set selected files
+    setProjectFiles(event.target.files);
   };
 
-  const hiddenFileInput = React.useRef(null); // Ref for hidden file input
+  const hiddenFileInput = React.useRef(null);
 
   const handleClick = () => {
-    hiddenFileInput.current.click(); // Trigger the hidden file input when the button is clicked
+    hiddenFileInput.current.click();
   };
+
+  // Fetch projects when component mounts
+
+  const fetchProjects = async () => {
+    try {
+      const response = await axios.get('/api/projects');
+      setProjects(response.data);
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+      setError('Failed to fetch projects');
+    }
+  };
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
 
   return (
     <>
@@ -57,15 +99,13 @@ export default function Home() {
         <Toolbar />
 
         <div className="flex-1 bg-white p-10">
-          <h1 className='text-3xl font-semibold text-center mb-8'>Home</h1>
+          <h1 className="text-3xl font-semibold text-center mb-8">Home</h1>
 
           {isCreatingProject ? (
-
             <div className="flex flex-col items-center justify-center w-full ">
               <h2 className="text-xl font-semibold mb-4">Create New Project</h2>
 
               <form onSubmit={handleCreateProject} className="bg-slate-100 p-8 rounded-lg shadow-md w-1/2">
-
                 <div className="mb-4">
                   <label className="block mb-2">Project Name:</label>
                   <input
@@ -94,30 +134,17 @@ export default function Home() {
                     ref={hiddenFileInput}
                     onChange={handleFileUpload}
                     multiple
-                    className="hidden" // Hide the default file input
+                    className="hidden"
                   />
-                  
-                  <div className="mb-4">
-                  <label className="block mb-2">Upload Files:</label>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/fileupload')} // Navigate to Upload page
-                    className="flex items-center justify-center bg-green-600 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-                  >
-                    <FaPlus className="mr-2" />
-                    Upload Files
-                  </button>
-                </div>
 
                   <button
                     type="button"
-                    onClick={handleClick} // Trigger file input on button click
+                    onClick={handleClick}
                     className="flex items-center justify-center bg-green-600 text-white px-4 py-2 rounded-md hover:bg-blue-600"
                   >
                     <FaUpload className="mr-2" />
                     Upload Files
                   </button>
-
                 </div>
 
                 <div className="flex justify-between mt-6">
@@ -136,17 +163,18 @@ export default function Home() {
                   </button>
                 </div>
               </form>
+
+              {error && <p style={{ color: 'red' }}>{error}</p>}
+              {message && <p style={{ color: 'green' }}>{message}</p>}
             </div>
           ) : (
             <>
-              {/* Grid container for project containers */}
               {projects.length > 0 ? (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
                     {projects.map((project) => (
                       <ProjectContainer key={project.id} height="300px" width="100%">
-                        <h1 className='text-xl font-semibold text-center mb-4'>{project.title}</h1>
-                        {/* Empty container area */}
+                        <h1 className="text-xl font-semibold text-center mb-4">{project.title}</h1>
                         <div className="border border-gray-300 bg-white rounded-lg h-[90%] flex items-center justify-center">
                           <p>{project.description}</p>
                         </div>
@@ -154,9 +182,10 @@ export default function Home() {
                     ))}
                   </div>
 
-                  {/* Dropdown for selecting existing project */}
                   <div className="mt-10">
-                    <label htmlFor="project-select" className="block text-lg font-semibold mb-2 text-center">Select an existing project:</label>
+                    <label htmlFor="project-select" className="block text-lg font-semibold mb-2 text-center">
+                      Select an existing project:
+                    </label>
                     <select
                       id="project-select"
                       value={selectedProject}
@@ -190,6 +219,6 @@ export default function Home() {
           )}
         </div>
       </div>
-    </>
-  );
+    </>
+  );
 }

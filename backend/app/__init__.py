@@ -2,18 +2,21 @@
 
 from flask import Flask
 from .config import Config
-from .extensions import initialize_extensions
+from .extensions import initialize_extensions, mongo
 from flask_jwt_extended import JWTManager
 import os
 import logging
 from logging.handlers import RotatingFileHandler
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env
 
 def setup_logging(app: Flask) -> None:
     """Set up logging for the application."""
-    if not os.path.exists('logs'):
-        os.mkdir('logs')
+    if not os.path.exists('app/logs'):
+        os.makedirs('app/logs')
     
-    file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240, backupCount=10)
+    file_handler = RotatingFileHandler('app/logs/app.log', maxBytes=10240, backupCount=10)
     file_handler.setFormatter(logging.Formatter(
         '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
     ))
@@ -24,6 +27,7 @@ def setup_logging(app: Flask) -> None:
     app.logger.info('Application startup')
 
 def create_app() -> Flask:
+    """Create and configure the Flask app."""
     app = Flask(__name__)
     app.config.from_object(Config)
 
@@ -32,9 +36,6 @@ def create_app() -> Flask:
 
     # Configure JWT
     jwt = JWTManager(app)
-
-    # Set JWT secret key from environment variable
-    app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your_default_jwt_secret_key')
 
     # Register routes
     from .routes import register_routes

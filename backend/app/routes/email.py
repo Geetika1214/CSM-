@@ -22,3 +22,5 @@ def test_email():
     except Exception as e:
         current_app.logger.error(f"Test email error: {e}")
         return jsonify({'error': 'Internal Server Error'}), 500
+    
+    

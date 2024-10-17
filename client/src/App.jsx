@@ -10,10 +10,13 @@ import GenerateNewPassword from './pages/generateNewPass';
 import FileUploadPage from './pages/FileUploadPage';
 import { Project } from './pages/project';
 import ProjectDetail from './pages/ProjectDetail';
+import About from './pages/about';
+
 export default function App() {
   return (
     <Routes>
       <Route path='/' element= {<Home/>}></Route>
+      <Route path='/about' element= {<About/>}></Route>
       <Route path='/signin' element= {<SignIn/>}></Route>
       <Route path='/forgotpassword' element= {<ForgotPassword/>}></Route>
       <Route path='/generatenewpass' element = {<GenerateNewPassword/>}></Route>
