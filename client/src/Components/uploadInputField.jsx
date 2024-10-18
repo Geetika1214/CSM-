@@ -31,7 +31,7 @@ const UploadInputField = ({
 UploadInputField.propTypes = {
   label: PropTypes.string.isRequired,
   type: PropTypes.string,
-  value: PropTypes.string.isRequired,
+  value: PropTypes.string,
   onChange: PropTypes.func.isRequired,
   placeholder: PropTypes.string,
   id: PropTypes.string.isRequired,

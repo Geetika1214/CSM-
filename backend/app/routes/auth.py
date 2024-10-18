@@ -1,5 +1,5 @@
 # app/routes/auth.py
-# frontend chl reha? sign in vgera?dekhna pyu
+from flask import Flask, send_from_directory, jsonify
 from flask import Blueprint, request, jsonify, current_app
 from ..models.user import UserModel
 from ..models.project import ProjectModel 
@@ -17,14 +17,15 @@ import re
 import bcrypt
 import os
 from werkzeug.utils import secure_filename
+from mongoengine.errors import DoesNotExist
 
 # Set the upload folder path
 UPLOAD_FOLDER = './uploads'
 
 # Allowed file extensions for project uploads
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'docx'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'docx' , 'xls', 'xlsx'} 
 
-auth_bp = Blueprint('auth', __name__, url_prefix='/api')
+auth_bp = Blueprint('auth', __name__, url_prefix='/api') 
 
 
 # Create the upload directory if it doesn't exist
@@ -349,22 +350,72 @@ def protected():
 @auth_bp.route('/upload', methods=['POST'])
 @jwt_required()
 def upload_file():
+    current_app.logger.info('Received a file upload request')
+
     if 'file' not in request.files:
+        current_app.logger.error('No file part in the request')
         return jsonify({'error': 'No file part in the request'}), 400
-    
+
     file = request.files['file']
-    
+    current_app.logger.info(f'Filename: {file.filename}')
+
     if file.filename == '':
+        current_app.logger.error('No file selected for uploading')
         return jsonify({'error': 'No file selected for uploading'}), 400
 
     if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)  # Secure the filename
+        filename = secure_filename(file.filename)
         file_path = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(file_path)  # Save the file to the server
-        
-        return jsonify({'message': 'File successfully uploaded', 'file_path': file_path}), 200
+        file.save(file_path)
+        current_app.logger.info('File successfully uploaded')
+        return jsonify({'message': 'File successfully uploaded', 'filename': filename}), 201
+    else:
+        current_app.logger.error('File type is not allowed')
+        return jsonify({'error': 'File type is not allowed'}), 400
     
-    return jsonify({'error': 'File type is not allowed'}), 400
+
+
+# Route to handle Download
+@auth_bp.route('/api/download/<filename>', methods=['GET'])
+def download_file(filename):
+    try:
+        return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Run your Flask app
+if __name__ == '__main__':
+    app.run(debug=True)
+
+# Route to update profile
+@auth_bp.route('/account', methods=['PUT'])
+@jwt_required()
+def update_account():
+    user_id = get_jwt_identity()  # Get the logged-in user's ID from JWT token
+    data = request.json
+
+    name = data.get('name')
+    email = data.get('email')
+
+    if not name or not email:
+        return jsonify({"error": "Name and email are required"}), 400
+
+    try:
+        # Find the user by their ID
+        user = UserModel.objects.get(id=user_id)
+
+        # Update the user's information
+        user.name = name
+        user.email = email
+        user.save()
+
+        return jsonify({"message": "Account updated successfully"}), 200
+
+    except DoesNotExist:
+        return jsonify({"error": "User not found"}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Register JWT Handlers
 def register_jwt_handlers(jwt: JWTManager):

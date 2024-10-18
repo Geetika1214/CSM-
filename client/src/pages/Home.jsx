@@ -81,13 +81,28 @@ export default function Home() {
 
   const fetchProjects = async () => {
     try {
-      const response = await axios.get('/api/projects');
-      setProjects(response.data);
-    } catch (err) {
-      console.error('Error fetching projects:', err);
-      setError('Failed to fetch projects');
+        const token = localStorage.getItem('access_token'); // Replace with your actual token retrieval method
+
+        const response = await fetch('http://127.0.0.1:5000/api/projects', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` // Include the token in the headers
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log(data);
+        // Process your data here...
+    } catch (error) {
+        console.error('Error fetching projects:', error);
     }
-  };
+};
+
 
   useEffect(() => {
     fetchProjects();
@@ -95,7 +110,7 @@ export default function Home() {
 
   return (
     <>
-      <div id="webcrumbs" className="flex h-screen">
+      <div id="webcrumbs" className="flex h-screen" >
         <Toolbar />
 
         <div className="flex-1 bg-white p-10">

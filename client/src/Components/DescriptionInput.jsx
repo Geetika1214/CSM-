@@ -20,8 +20,8 @@ const DescriptionInput = ({ description, setDescription }) => {
 };
 
 DescriptionInput.propTypes = {
-  description: PropTypes.string.isRequired, // Ensure description is passed
-  setDescription: PropTypes.func.isRequired, // Ensure setDescription is passed
+  description: PropTypes.string, 
+  setDescription: PropTypes.func, 
 };
 
 export default DescriptionInput;

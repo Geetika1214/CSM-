@@ -3,14 +3,37 @@ import { FaEdit } from "react-icons/fa"; // Import FaEdit icon from react-icons
 import Toolbar from "../Components/Toolbar";
 import UploadInputField from "../Components/UploadInputField"; // Import your UploadInputField
 import UploadButton from "../Components/UploadButton"; // Import your UploadButton
+import axios from 'axios';
 
 export const Account = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSaveChanges = () => {
-    // Logic to handle saving changes
-    console.log("Saving changes:", { name, email });
+
+  const handleSaveChanges = async () => {
+    setIsLoading(true); // Start loader
+
+    try {
+      const token = localStorage.getItem('token'); // Get JWT from localStorage
+      const response = await axios.put(
+        'http://127.0.0.1:5000/api/account', // Assuming Flask is running on port 5000
+        { name, email },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Send JWT token for auth
+          },
+        }
+      );
+      console.log(response.data);
+      // Handle success, maybe show a success message
+    } catch (error) {
+      console.error(error);
+      // Handle errors (display error message to user)
+    }
+    finally{
+      setIsLoading(false); // Stop loader
+    }
   };
 
   return (
