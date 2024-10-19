@@ -49,14 +49,14 @@ def create_project():
                 return jsonify({'error': 'File type not allowed'}), 400
 
         # Create project in the database
-        # Assuming you have a ProjectModel similar to UserModel
         project = ProjectModel.create_project(title, description, file_paths)
-        if project:
-            current_app.logger.info(f"Project '{title}' created successfully")
-            return jsonify({'message': 'Project created successfully', 'project': project}), 201
-        else:
-            current_app.logger.error('Create project failed: Project creation unsuccessful')
+
+        if project is None: 
+            current_app.logger.error('Create project failed: Project creation returned None')
             return jsonify({'error': 'Failed to create project'}), 500
+
+        current_app.logger.info(f"Project '{title}' created successfully")
+        return jsonify({'message': 'Project created successfully', 'project': project}), 201
 
     except Exception as e:
         current_app.logger.error(f"Create project encountered an unexpected error: {e}")
@@ -109,7 +109,12 @@ def upload_file():
 @auth_bp.route('/download/<filename>', methods=['GET'])
 def download_file(filename):
     try:
+        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        if not os.path.isfile(file_path):
+            current_app.logger.error(f'File {filename} not found')
+            return jsonify({'error': 'File not found'}), 404
+
         return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
+        current_app.logger.error(f"Download encountered an unexpected error: {e}")
+        return jsonify({'error': 'Internal Server Error'}), 500

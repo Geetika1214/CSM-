@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import axios from "axios";
 import Toolbar from "../Components/Toolbar";
 import DescriptionInput from "../Components/DescriptionInput";
-import FileButtons from "../Components/FIleButtons"; // Ensure this has the upload button
+import FileButtons from "../Components/FileButtons"; // Ensure this has the upload button
 import Workspace from "../Components/Workspace";
 
 export const ProjectDetail = () => {
@@ -14,15 +14,16 @@ export const ProjectDetail = () => {
   const [error, setError] = useState(null); // Error state
 
   const fetchProjectDetails = async () => {
-    console.log("Fetching details for project ID:", id);
     try {
       const response = await axios.get(`/api/projects/${id}`); // Fetch project details
-      setDescription(response.data.description); // Set the description
-      setUploadedFile(response.data.uploadedFile); // Assuming backend provides uploaded file name
+      if (response.data) {
+        setDescription(response.data.description); // Set the description
+        setUploadedFile(response.data.uploadedFile || null); // Handle undefined file
+      }
     } catch (error) {
       console.error("Error fetching project details:", error);
       setError("Failed to fetch project details. Please try again later."); // Set error message
-    }finally {
+    } finally {
       setLoading(false); // Set loading to false after fetching
     }
   };
@@ -35,18 +36,14 @@ export const ProjectDetail = () => {
   const handleUploadSuccess = (fileName) => {
     setUploadedFile(fileName); // Update the uploaded file state
   };
-  
 
   if (loading) return <div>Loading...</div>; // Loading state
   if (error) return <div>{error}</div>; // Error state
 
-
   return (
     <div id="webcrumbs" className="flex min-h-screen bg-gray-100">
-      {/* Toolbar component */}
       <Toolbar className="h-full bg-gray-200" />
 
-      {/* Main content area */}
       <div className="flex-1 p-8">
         <div className="bg-white shadow-lg rounded-lg p-8">
           <h1 className="font-title text-3xl font-semibold text-gray-800 mb-4">
@@ -55,9 +52,7 @@ export const ProjectDetail = () => {
 
           <DescriptionInput description={description} setDescription={setDescription} />
           <Workspace uploadedFile={uploadedFile} />
-
-          <FileButtons  onUploadSuccess={handleUploadSuccess} uploadedFile={uploadedFile}/>
- 
+          <FileButtons onUploadSuccess={handleUploadSuccess} uploadedFile={uploadedFile}/>
         </div>
       </div>
     </div>

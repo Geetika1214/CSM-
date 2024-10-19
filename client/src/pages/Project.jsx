@@ -1,69 +1,126 @@
-// src/pages/Project.jsx
-
-import React, { useState } from "react";
-import { FaPlus, FaFolder, FaEdit } from "react-icons/fa"; // Importing FaPlus, FaFolder, and FaEdit icons
-import { Link } from "react-router-dom"; // Import Link for navigation
+import React, { useState, useEffect } from "react";
+import { FaPlus, FaFolder, FaEdit } from "react-icons/fa";
+import { Link } from "react-router-dom";
 import Toolbar from "../Components/Toolbar";
-import PropTypes from 'prop-types'; // If needed
+import axios from "axios";
 
 export const Project = () => {
-  const [projects, setProjects] = useState([
-    { id: 1, name: "Project Name 1" },
-    { id: 2, name: "Project Name 2" },
-    { id: 3, name: "Project Name 3" },
-  ]);
-
+  const [projects, setProjects] = useState([]);
   const [editingIndex, setEditingIndex] = useState(null);
   const [editedName, setEditedName] = useState("");
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectModalOpen, setNewProjectModalOpen] = useState(false);
 
+  useEffect(() => {
+    const fetchProjects = async () => {
+      const token = localStorage.getItem('token'); // Get the token from local storage
+
+      try {
+        const response = await axios.get('http://127.0.0.1:5000/api/projects', {
+          headers: {
+            Authorization: `Bearer ${token}` // Include the token in the header
+          }
+        });
+        setProjects(response.data); // Set projects with response data
+      } catch (error) {
+        console.error("Error fetching projects:", error);
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
   const handleEditClick = (index) => {
     setEditingIndex(index);
-    setEditedName(projects[index].name); // Pre-fill the input with the current project name
+    setEditedName(projects[index].name);
   };
 
-  const handleUpdate = (index) => {
-    const updatedProjects = [...projects];
-    updatedProjects[index].name = editedName.trim();
-    setProjects(updatedProjects);
-    setEditingIndex(null);
+  const handleUpdate = async (index) => {
+    const updatedProject = { ...projects[index], name: editedName.trim() };
+
+    const token = localStorage.getItem('token'); // Get the token from local storage
+
+    try {
+      const response = await axios.put(`http://127.0.0.1:5000/api/projects/${updatedProject.id}`, updatedProject, {
+        headers: {
+          Authorization: `Bearer ${token}` // Include the token in the header
+        }
+      });
+      if (response.status === 200) {
+        const updatedProjects = [...projects];
+        updatedProjects[index] = updatedProject; // Update in state
+        setProjects(updatedProjects);
+        setEditingIndex(null);
+      } else {
+        console.error("Error updating project");
+      }
+    } catch (error) {
+      console.error("Error updating project:", error);
+    }
   };
 
-  const handleAddProject = () => {
+  const handleAddProject = async () => {
     if (newProjectName.trim() === "") return;
+
     const newProject = {
-      id: projects.length + 1, // In a real app, IDs should come from the backend
-      name: newProjectName.trim(),
+      title: newProjectName.trim(), // Adjust based on your API requirements
+      description: "", // Default or prompt for description
+      files: [], // Default or prompt for files
     };
-    setProjects([...projects, newProject]);
-    setNewProjectName("");
-    setNewProjectModalOpen(false);
+
+    const token = localStorage.getItem('token'); // Get the token from local storage
+
+    try {
+      const response = await axios.post('http://127.0.0.1:5000/api/projects', newProject, {
+        headers: {
+          Authorization: `Bearer ${token}` // Include the token in the header
+        }
+      });
+      if (response.status === 201) {
+        setProjects([...projects, response.data]); // Append new project
+        setNewProjectName("");
+        setNewProjectModalOpen(false);
+      } else {
+        console.error("Error adding project");
+      }
+    } catch (error) {
+      console.error("Error adding project:", error);
+    }
+  };
+
+  const handleDeleteProject = async (id) => {
+    const token = localStorage.getItem('token'); // Get the token from local storage
+
+    try {
+      const response = await fetch(`http://127.0.0.1:5000/api/projects/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}` // Include the token in the header
+        }
+      });
+      if (response.ok) {
+        setProjects(projects.filter(project => project.id !== id)); // Remove from state
+      } else {
+        console.error("Error deleting project");
+      }
+    } catch (error) {
+      console.error("Error deleting project:", error);
+    }
   };
 
   return (
     <div id="webcrumbs" className="flex min-h-screen bg-gray-100">
-      
-      {/* Sidebar */}
       <Toolbar className="h-full bg-gray-200" />
-
-
-      {/* Main Content Area */}
       <div className="flex-1 p-8">
         <div className="bg-white shadow-lg rounded-lg p-8">
           <h1 className="font-title text-3xl font-semibold text-gray-800 mb-6">
             <FaFolder className="inline mr-2 text-slate-600" /> Projects
           </h1>
-
-          {/* Project List */}
           <div className="bg-gray-50 p-6 rounded-lg shadow-sm">
             <h2 className="text-lg font-semibold text-gray-700 mb-4">My Projects</h2>
             <div className="flex flex-col gap-4">
               {projects.map((project, index) => (
-                <div
-                  key={project.id}
-                  className="flex items-center justify-between border border-gray-200 bg-white p-4 rounded-md shadow-sm"
-                >
+                <div key={project.id} className="flex items-center justify-between border border-gray-200 bg-white p-4 rounded-md shadow-sm">
                   {editingIndex === index ? (
                     <div className="flex items-center">
                       <input
@@ -93,14 +150,19 @@ export const Project = () => {
                       >
                         <FaEdit />
                       </button>
+                      <button
+                        onClick={() => handleDeleteProject(project.id)}
+                        className="text-red-600 hover:text-red-500"
+                        aria-label={`Delete ${project.name}`}
+                      >
+                        Delete
+                      </button>
                     </>
                   )}
                 </div>
               ))}
             </div>
           </div>
-
-          {/* Add Project Button */}
           <div className="mt-8 flex justify-center">
             <button
               onClick={() => setNewProjectModalOpen(true)}
@@ -111,8 +173,6 @@ export const Project = () => {
               <FaPlus />
             </button>
           </div>
-
-          {/* New Project Modal */}
           {newProjectModalOpen && (
             <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
               <div className="bg-white p-6 rounded-lg shadow-lg w-11/12 sm:w-1/3">
@@ -150,8 +210,5 @@ export const Project = () => {
     </div>
   );
 };
-
-// If you plan to define propTypes for Project, though it's not necessary here as it doesn't receive props
-Project.propTypes = {};
 
 export default Project;
