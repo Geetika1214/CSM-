@@ -2,7 +2,7 @@
 
 from .auth import auth_bp
 from .email import email_bp
-# from .project_routes import project_bp
+from .project import *
 # from .user_routes import user_bp
 
 def register_routes(app):

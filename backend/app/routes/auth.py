@@ -1,8 +1,7 @@
 # app/routes/auth.py
-from flask import Flask, send_from_directory, jsonify
+from flask import Flask, jsonify
 from flask import Blueprint, request, jsonify, current_app
 from ..models.user import UserModel
-from ..models.project import ProjectModel 
 from ..utils.email_service import send_verification_email
 from flask_jwt_extended import (
     create_access_token, 
@@ -15,26 +14,13 @@ import random
 import string
 import re
 import bcrypt
-import os
-from werkzeug.utils import secure_filename
 from mongoengine.errors import DoesNotExist
 
-# Set the upload folder path
-UPLOAD_FOLDER = './uploads'
-
-# Allowed file extensions for project uploads
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'docx' , 'xls', 'xlsx'} 
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api') 
 
 
-# Create the upload directory if it doesn't exist
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-def allowed_file(filename):
-    """Check if the file has an allowed extension."""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @auth_bp.route('/signup', methods=['POST'])
 def signup():
@@ -266,57 +252,6 @@ def reset_password():
         current_app.logger.error(f"Reset password encountered an unexpected error: {e}")
         return jsonify({'error': 'Internal Server Error'}), 500
 
-@auth_bp.route('/projects', methods=['POST'])
-@jwt_required()
-def create_project():
-    """Create a new project endpoint."""
-    try:
-        # For multipart/form-data, use request.form and request.files
-        title = request.form.get('title')
-        description = request.form.get('description')
-        project_files = request.files.getlist('files')
-
-        if not all([title, description]):
-            current_app.logger.error('Create project failed: Project name and description are required')
-            return jsonify({'error': 'Project name and description are required'}), 400
-
-        # Save files if any and collect filenames
-        file_paths = []
-        for file in project_files:
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                file.save(os.path.join('uploads', filename))
-                file_paths.append(filename)
-            elif file:
-                current_app.logger.error('Create project failed: File type not allowed')
-                return jsonify({'error': 'File type not allowed'}), 400
-
-        # Create project in the database
-        # Assuming you have a ProjectModel similar to UserModel
-        project = ProjectModel.create_project(title, description, file_paths)
-        if project:
-            current_app.logge+r.info(f"Project '{title}' created successfully")
-            return jsonify({'message': 'Project created successfully', 'project': project}), 201
-        else:
-            current_app.logger.error('Create project failed: Project creation unsuccessful')
-            return jsonify({'error': 'Failed to create project'}), 500
-
-    except Exception as e:
-        current_app.logger.error(f"Create project encountered an unexpected error: {e}")
-        return jsonify({'error': 'Internal Server Error'}), 500
-
-@auth_bp.route('/projects', methods=['GET'])
-@jwt_required()
-def get_projects():
-    """Get all projects endpoint."""
-    try:
-        # Assuming you have a ProjectModel similar to UserModel
-        projects = ProjectModel.get_all_projects()
-        current_app.logger.info('Retrieved all projects successfully')
-        return jsonify(projects), 200
-    except Exception as e:
-        current_app.logger.error(f"Get projects encountered an unexpected error: {e}")
-        return jsonify({'error': 'Internal Server Error'}), 500
 
 @auth_bp.route('/token/refresh', methods=['POST'])
 @jwt_required(refresh=True)
@@ -344,78 +279,47 @@ def protected():
         return jsonify({'error': 'Internal Server Error'}), 500
     
 
-
-
-# Route to handle file upload
-@auth_bp.route('/upload', methods=['POST'])
-@jwt_required()
-def upload_file():
-    current_app.logger.info('Received a file upload request')
-
-    if 'file' not in request.files:
-        current_app.logger.error('No file part in the request')
-        return jsonify({'error': 'No file part in the request'}), 400
-
-    file = request.files['file']
-    current_app.logger.info(f'Filename: {file.filename}')
-
-    if file.filename == '':
-        current_app.logger.error('No file selected for uploading')
-        return jsonify({'error': 'No file selected for uploading'}), 400
-
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(file_path)
-        current_app.logger.info('File successfully uploaded')
-        return jsonify({'message': 'File successfully uploaded', 'filename': filename}), 201
-    else:
-        current_app.logger.error('File type is not allowed')
-        return jsonify({'error': 'File type is not allowed'}), 400
-    
-
-
-# Route to handle Download
-@auth_bp.route('/api/download/<filename>', methods=['GET'])
-def download_file(filename):
-    try:
-        return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# Run your Flask app
-if __name__ == '__main__':
-    app.run(debug=True)
-
 # Route to update profile
-@auth_bp.route('/account', methods=['PUT'])
+@auth_bp.route('/account', methods=['GET', 'PUT'])
 @jwt_required()
-def update_account():
-    user_id = get_jwt_identity()  # Get the logged-in user's ID from JWT token
-    data = request.json
+def account():
+    current_user_id = get_jwt_identity()  # Get the user's ID from the token
+    user = UserModel.find_by_id(current_user_id)  # Ensure this method exists and retrieves user by ID
 
-    name = data.get('name')
-    email = data.get('email')
+    if request.method == 'GET':
+        if user:
+            return jsonify({"user": {
+                "email": user.email,
+                "name": user.name,
+                "is_verified": user.is_verified  # Include any other relevant fields
+            }}), 200
+        else:
+            return jsonify({"message": "User not found"}), 404
 
-    if not name or not email:
-        return jsonify({"error": "Name and email are required"}), 400
+    if request.method == 'PUT':
+        data = request.get_json()
+        if not data or 'name' not in data:
+            return jsonify({"message": "Invalid data provided"}), 400  # Validate that data is provided
 
-    try:
-        # Find the user by their ID
-        user = UserModel.objects.get(id=user_id)
+        name = data.get('name')
+        if not name:
+            return jsonify({"message": "Name is required"}), 400  # Validate that name is provided
 
-        # Update the user's information
-        user.name = name
-        user.email = email
-        user.save()
-
-        return jsonify({"message": "Account updated successfully"}), 200
-
-    except DoesNotExist:
-        return jsonify({"error": "User not found"}), 404
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        try:
+            updated_user = UserModel.update_name(current_user_id, name)  # Assuming update_name uses user ID
+            if updated_user:
+                return jsonify({
+                    "message": "User updated successfully",
+                    "user": {
+                        "email": updated_user.email,
+                        "name": updated_user.name  # Return the updated user info
+                    }
+                }), 200
+            else:
+                return jsonify({"message": "Failed to update user"}), 500
+        except Exception as e:
+            current_app.logger.error(f"Error updating user: {e}")
+            return jsonify({"message": "Internal Server Error"}), 500        
 
 # Register JWT Handlers
 def register_jwt_handlers(jwt: JWTManager):

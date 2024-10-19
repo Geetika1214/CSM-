@@ -72,3 +72,14 @@ class UserModel:
             )
         except Exception as e:
             current_app.logger.error(f"Error updating password: {e}")
+
+    @staticmethod
+    def update_name(email, new_name):
+        """Update the user's name."""
+        try:
+            current_app.db.users.update_one(
+                {'email': email},
+                {'$set': {'username': new_name}}  # Update the username field
+            )
+        except Exception as e:
+            current_app.logger.error(f"Error updating name: {e}")
