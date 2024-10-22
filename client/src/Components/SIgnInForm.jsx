@@ -5,14 +5,14 @@ import Checkbox from './Checkbox';
 import Button from './Button';
 
 const SignInForm = () => {
-  const { login } = useContext(AuthContext); // Access login function from AuthContext
+  const { login } = useContext(AuthContext); 
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   
   const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false); // State to track loading status
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

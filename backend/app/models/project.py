@@ -53,10 +53,19 @@ class ProjectModel:
             return None  # Return None on error
 
     @staticmethod
-    def update_project(project_id, data):
+    def update_project(project_id, title=None, description=None, files=None):
         """Update a project by its ID."""
         try:
-            result = mongo.db.projects.update_one({"_id": ObjectId(project_id)}, {"$set": data})
+            update_data = {}
+            if title is not None:
+                update_data['title'] = title
+            if description is not None:
+                update_data['description'] = description
+            if files is not None:
+                update_data['files'] = files
+            update_data['updated_at'] = datetime.utcnow()  # Update timestamp
+            
+            result = mongo.db.projects.update_one({"_id": ObjectId(project_id)}, {"$set": update_data})
             return result.modified_count > 0  # Return True if modified
         except Exception as e:
             current_app.logger.error(f"Error updating project: {e}")

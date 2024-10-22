@@ -1,6 +1,7 @@
 from flask import jsonify, request, current_app, send_from_directory
 from ..models.project import ProjectModel
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required,get_jwt_identity
+
 from flask import jsonify, request, current_app
 
 from . import auth_bp
@@ -31,7 +32,6 @@ def create_project():
         # For multipart/form-data, use request.form and request.files
         title = request.form.get('title')
         description = request.form.get('description')
-        project_files = request.files.getlist('files')
 
         if not all([title, description]):
             current_app.logger.error('Create project failed: Project name and description are required')
@@ -67,6 +67,10 @@ def create_project():
 def get_projects():
     """Get all projects endpoint."""
     try:
+        # Log the identity or claims from the token
+        current_user = get_jwt_identity()
+        current_app.logger.info(f'Current user: {current_user}')
+
         # Assuming you have a ProjectModel similar to UserModel
         projects = ProjectModel.get_all_projects()
         current_app.logger.info('Retrieved all projects successfully')
@@ -117,4 +121,66 @@ def download_file(filename):
         return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
     except Exception as e:
         current_app.logger.error(f"Download encountered an unexpected error: {e}")
+        return jsonify({'error': 'Internal Server Error'}), 500
+    
+
+    # Route to handle updating a project
+@auth_bp.route('/projects/<int:id>', methods=['PUT'])
+@jwt_required()
+def update_project(id):
+    """Update an existing project endpoint."""
+    try:
+        title = request.form.get('title')
+        description = request.form.get('description')
+        project_files = request.files.getlist('files')
+
+        # Check if project exists
+        project = ProjectModel.get_project_by_id(id)
+        if project is None:
+            current_app.logger.error(f'Update project failed: Project with id {id} not found')
+            return jsonify({'error': 'Project not found'}), 404
+
+        # Update project details
+        project.title = title if title else project.title
+        project.description = description if description else project.description
+
+        # Save files if any and collect filenames
+        file_paths = []
+        for file in project_files:
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(UPLOAD_FOLDER, filename))
+                file_paths.append(filename)
+            elif file:
+                current_app.logger.error('Update project failed: File type not allowed')
+                return jsonify({'error': 'File type not allowed'}), 400
+
+        # Update project in the database
+        ProjectModel.update_project(id, title, description, file_paths)
+
+        current_app.logger.info(f"Project with id '{id}' updated successfully")
+        return jsonify({'message': 'Project updated successfully', 'project': project}), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Update project encountered an unexpected error: {e}")
+        return jsonify({'error': 'Internal Server Error'}), 500
+
+# Route to handle deleting a project
+@auth_bp.route('/projects/<int:id>', methods=['DELETE'])
+@jwt_required()
+def delete_project(id):
+    """Delete a project endpoint."""
+    try:
+        project = ProjectModel.get_project_by_id(id)
+        if project is None:
+            current_app.logger.error(f'Delete project failed: Project with id {id} not found')
+            return jsonify({'error': 'Project not found'}), 404
+
+        # Delete project in the database
+        ProjectModel.delete_project(id)
+        current_app.logger.info(f"Project with id '{id}' deleted successfully")
+        return jsonify({'message': 'Project deleted successfully'}), 204
+
+    except Exception as e:
+        current_app.logger.error(f"Delete project encountered an unexpected error: {e}")
         return jsonify({'error': 'Internal Server Error'}), 500

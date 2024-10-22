@@ -67,7 +67,7 @@ class UserModel:
         """Update the user's password with a new hashed password."""
         try:
             hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
-            current_app.db.users.update_one(  # Changed from mongo.db to current_app.db
+            current_app.db.users.update_one(  
                 {'email': email},
                 {'$set': {'password': hashed_password, 'verification_code': None}}
             )
@@ -89,9 +89,9 @@ class UserModel:
     def find_by_id(user_id):
         """Find a user by their unique ID."""
         try:
-            user = current_app.db.users.find_one({'_id': ObjectId(user_id)})  # Query using ObjectId
+            user = current_app.db.users.find_one({'_id': ObjectId(user_id)})  
             if user:
-                user['id'] = str(user['_id'])  # Convert ObjectId to string
+                user['id'] = str(user['_id'])  
                 return user
             return None
         except Exception as e:
