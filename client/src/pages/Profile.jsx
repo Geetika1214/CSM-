@@ -15,10 +15,11 @@ const Profile = () => {
     const fetchProfile = async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem('token'); // Get token
+        const token = localStorage.getItem('access_token'); // Get token
         const response = await axios.get('http://127.0.0.1:5000/api/account', {
           headers: {
             Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
           },
         });
         setProfileData(response.data.user); // Set profile data from response

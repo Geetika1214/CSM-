@@ -283,43 +283,32 @@ def protected():
 @auth_bp.route('/account', methods=['GET', 'PUT'])
 @jwt_required()
 def account():
-    current_user_id = get_jwt_identity()  # Get the user's ID from the token
-    user = UserModel.find_by_id(current_user_id)  # Ensure this method exists and retrieves user by ID
-
-    if request.method == 'GET':
-        if user:
-            return jsonify({"user": {
-                "email": user.email,
-                "name": user.name,
-                "is_verified": user.is_verified  # Include any other relevant fields
-            }}), 200
-        else:
-            return jsonify({"message": "User not found"}), 404
-
-    if request.method == 'PUT':
-        data = request.get_json()
-        if not data or 'name' not in data:
-            return jsonify({"message": "Invalid data provided"}), 400  # Validate that data is provided
-
-        name = data.get('name')
-        if not name:
-            return jsonify({"message": "Name is required"}), 400  # Validate that name is provided
-
-        try:
-            updated_user = UserModel.update_name(current_user_id, name)  # Assuming update_name uses user ID
-            if updated_user:
-                return jsonify({
-                    "message": "User updated successfully",
-                    "user": {
-                        "email": updated_user.email,
-                        "name": updated_user.name  # Return the updated user info
-                    }
-                }), 200
+    try:
+        current_user_id = get_jwt_identity()  # Get user ID from the token
+        user = UserModel.find_by_id(current_user_id)  # Ensure this method retrieves user by ID
+        
+        if request.method == 'GET':
+            if user:
+                return jsonify({"user": {
+                    "email": user['email'],
+                    "name": user['username'],
+                    "is_verified": user['is_verified']  # Include any other relevant fields
+                }}), 200
             else:
-                return jsonify({"message": "Failed to update user"}), 500
-        except Exception as e:
-            current_app.logger.error(f"Error updating user: {e}")
-            return jsonify({"message": "Internal Server Error"}), 500        
+                return jsonify({"message": "User not found"}), 404
+        
+        if request.method == 'PUT':
+            data = request.get_json()
+            if not data or 'name' not in data:
+                return jsonify({"message": "Invalid data provided"}), 400
+
+            name = data.get('name')
+            UserModel.update_name(current_user_id, name)  # Assuming this uses user ID
+            return jsonify({"message": "User updated successfully"}), 200
+    
+    except Exception as e:
+        current_app.logger.error(f"Internal Server Error: {e}")
+        return jsonify({"message": "Internal Server Error"}), 500
 
 # Register JWT Handlers
 def register_jwt_handlers(jwt: JWTManager):

@@ -1,6 +1,7 @@
 # app/models/user.py
 #yahooo baki v chla ke dekh backend ale 
 from flask import current_app
+from bson import ObjectId  # Ensure to import this
 from ..extensions import mongo
 import bcrypt
 class UserModel:
@@ -83,3 +84,16 @@ class UserModel:
             )
         except Exception as e:
             current_app.logger.error(f"Error updating name: {e}")
+
+    @staticmethod
+    def find_by_id(user_id):
+        """Find a user by their unique ID."""
+        try:
+            user = current_app.db.users.find_one({'_id': ObjectId(user_id)})  # Query using ObjectId
+            if user:
+                user['id'] = str(user['_id'])  # Convert ObjectId to string
+                return user
+            return None
+        except Exception as e:
+            current_app.logger.error(f"Error finding user by ID: {e}")
+            return None
