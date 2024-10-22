@@ -70,3 +70,4 @@ class ProjectModel:
         except Exception as e:
             current_app.logger.error(f"Error deleting project: {e}")
             return False  # Return False on error
+        
