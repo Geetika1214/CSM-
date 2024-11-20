@@ -82,7 +82,6 @@ export default function Home() {
         <Toolbar  />
 
         <div className="flex-1 bg-white p-6">
-          <h1 className="text-3xl font-semibold text-center mb-8 mt-9">Home</h1>
 
           {isCreatingProject ? (
             <div className="flex flex-col items-center w-full">
@@ -135,17 +134,13 @@ export default function Home() {
               {projects.length > 0 ? (
                 <div className="flex flex-col items-center">
                   
-                  
-
                   <div className=" text-center w-full max-w-md">
-                    <label htmlFor="project-select" className="block text-lg mt-4 mb-4 font-semibold text-center">
-                      Select an existing project:
-                    </label>
+                  <div className="absolute top-4 right-4">
                     <select
                       id="project-select"
                       value={selectedProject}
                       onChange={handleProjectChange}
-                      className="text-center text-white p-2 border bg-slate-500 mx-auto border-gray-300 rounded-md w-full"
+                      className="text-center text-white p-2 border bg-slate-700 mx-auto border-gray-300 rounded-md "
                     >
                       <option value="">Select an existing project:</option>
                       {projects.map((project) => (
@@ -154,6 +149,7 @@ export default function Home() {
                         </option>
                       ))}
                     </select>
+                    </div>
                   </div>
 
 
@@ -163,6 +159,7 @@ export default function Home() {
                           key={project.id} 
                           height="275px" 
                           width="100%"
+                          onClick={() => navigate(`/project/${project.id}`)} 
                           className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 ease-in-out"
                         >
                           <div className="p-4">
@@ -177,7 +174,6 @@ export default function Home() {
                         </ProjectContainer>
                       ))}
                     </div>
-
 
                 </div>
               ) : (

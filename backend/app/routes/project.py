@@ -24,45 +24,6 @@ def allowed_file(filename):
     """Check if the file has an allowed extension."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# @auth_bp.route('/process-file', methods=['POST'])
-# @jwt_required()  # Ensure the user is authenticated
-# def process_file_api():
-#     current_app.logger.info('Received a file for processing')
-
-#     if 'file' not in request.files:
-#         current_app.logger.error('No file part in the request')
-#         return jsonify({'error': 'No file part in the request'}), 400
-
-#     file = request.files['file']
-
-#     if file.filename == '':
-#         current_app.logger.error('No file selected for uploading')
-#         return jsonify({'error': 'No file selected for uploading'}), 400
-
-#     # Define a temp path to save the uploaded file
-#     temp_file_path = os.path.join(TEMP_FOLDER, secure_filename(file.filename))
-#     file.save(temp_file_path)
-
-#     current_app.logger.info(f'File {file.filename} uploaded successfully to {temp_file_path}')
-
-#     # Call the process_file function with the temp file path and save the output file path
-#     output_file_path = process_file(temp_file_path)
-
-#     # Save the output file in the same 'tempfile' directory
-#     output_file_name = f'processed_{secure_filename(file.filename)}'
-#     output_file_full_path = os.path.join(TEMP_FOLDER, output_file_name)
-
-#     # Open the processed file and write its contents to the new output file
-#     with open(output_file_path, 'rb') as processed_file:
-#         content = processed_file.read()
-#     with open(output_file_full_path, 'wb') as f:
-#         f.write(content)
-
-#     return jsonify({
-#         'message': 'File processed successfully',
-#         'output_file_path': output_file_full_path  # Return the full path of the output file
-#     }), 201
-
 @auth_bp.route('/process-file', methods=['POST'])
 @jwt_required()  # Ensure the user is authenticated
 def process_file_api():
@@ -145,74 +106,6 @@ def get_projects():
         current_app.logger.error(f"Get projects encountered an unexpected error: {e}")
         return jsonify({'error': 'Internal Server Error'}), 500
 
-
-# # Route to handle file upload
-# @auth_bp.route('/upload', methods=['POST'])
-# @jwt_required()
-# def upload_file():
-#     current_app.logger.info('Received a file upload request')
-
-#     if 'file' not in request.files:
-#         current_app.logger.error('No file part in the request')
-#         return jsonify({'error': 'No file part in the request'}), 400
-
-#     file = request.files['file']
-#     # current_app.logger.info(f'Filename: {file.filename}')
-
-#     if file.filename == '':
-#         current_app.logger.error('No file selected for uploading')
-#         return jsonify({'error': 'No file selected for uploading'}), 400
-
-#     if not allowed_file(file.filename):
-#         current_app.logger.error('File type not allowed')
-#         return jsonify({'error': 'File type not allowed'}), 400    
-
-#     # Save the file
-#     filename = secure_filename(file.filename)
-#     file_path = os.path.join(UPLOAD_FOLDER, filename)
-#     file.save(file_path)
-#     current_app.logger.info(f'File {filename} uploaded successfully')
-
-#     return jsonify({'message': 'File uploaded successfully', 'file_path': file_path}), 201
-
-
-
-# # Route to handle file upload
-# @auth_bp.route('/upload/<project_id>', methods=['POST'])
-# @jwt_required()
-# def upload_file(project_id):
-#     current_app.logger.info('Received a file upload request')
-
-#     if 'file' not in request.files:
-#         current_app.logger.error('No file part in the request')
-#         return jsonify({'error': 'No file part in the request'}), 400
-
-#     file = request.files['file']
-
-#     if file.filename == '':
-#         current_app.logger.error('No file selected for uploading')
-#         return jsonify({'error': 'No file selected for uploading'}), 400
-
-#     if not allowed_file(file.filename):
-#         current_app.logger.error('File type not allowed')
-#         return jsonify({'error': 'File type not allowed'}), 400    
-
-#     # Save the file
-#     filename = secure_filename(file.filename)
-#     file_path = os.path.join(TEMP_FOLDER, filename)
-#     file.save(file_path)
-#     current_app.logger.info(f'File {filename} uploaded successfully')
-
-#     # Associate the uploaded file with the project
-#     update_status = ProjectModel.update_project_file(project_id, file_path)
-
-#     if not update_status:
-#         current_app.logger.error('Failed to associate file with the project')
-#         return jsonify({'error': 'Failed to associate file with the project'}), 500
-
-#     return jsonify({'message': 'File uploaded successfully', 'file_path': file_path, 'project_id': project_id}), 201
-# Route to handle file upload with custom filename
-# Route to handle file upload with custom filename
 @auth_bp.route('/upload/<project_id>', methods=['POST'])
 @jwt_required()
 def upload_file(project_id):
@@ -257,19 +150,6 @@ def upload_file(project_id):
 
     return jsonify({'message': 'File uploaded successfully', 'file_path': file_path, 'project_id': project_id}), 201
 
-# # Route to handle Download
-# @auth_bp.route('/download/<filename>', methods=['GET'])
-# def download_file(filename):
-#     try:
-#         file_path = os.path.join(UPLOAD_FOLDER, filename)
-#         if not os.path.isfile(file_path):
-#             current_app.logger.error(f'File {filename} not found')
-#             return jsonify({'error': 'File not found'}), 404
-
-#         return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
-#     except Exception as e:
-#         current_app.logger.error(f"Download encountered an unexpected error: {e}")
-#         return jsonify({'error': 'Internal Server Error'}), 500
 @auth_bp.route('/download-latest', methods=['GET'])
 @jwt_required()  # Optional: add if download should be restricted
 def download_latest_file():
@@ -376,3 +256,18 @@ def update_project_description(project_id):
     except Exception as e:
         current_app.logger.error(f"Update project description encountered an unexpected error: {e}")
         return jsonify({'error': 'Internal Server Error'}), 500
+
+@auth_bp.route('/api/project/<project_id>', methods=['PUT'])
+def update_project_desc(project_id):
+    project = ProjectModel.get_project_by_id(project_id)
+    if project:
+        description = request.json.get('description')  # Get the new description
+        project['description'] = description  # Update the description
+        update_status = ProjectModel.update_project_description(project_id, description)
+        if not update_status:
+            return jsonify({'error': 'Failed to update project description'}), 500
+        return jsonify({"message": "Project updated successfully!"}), 200
+    else:
+        return jsonify({"error": "Project not found"}), 404
+
+

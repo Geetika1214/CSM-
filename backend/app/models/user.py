@@ -1,5 +1,4 @@
 # app/models/user.py
-#yahooo baki v chla ke dekh backend ale 
 from flask import current_app
 from bson import ObjectId  # Ensure to import this
 from ..extensions import mongo
@@ -52,7 +51,7 @@ class UserModel:
     def verify_user(email, code):
         """Verify the user's email using the provided code."""
         try:
-            user = current_app.db.users.find_one({'email': email, 'verification_code': code})  # Changed from mongo.db to current_app.db
+            user = current_app.db.users.find_one({'email': email, 'verification_code': code}) 
             if user:
                 current_app.db.users.update_one(  # Changed from mongo.db to current_app.db
                     {'email': email},
@@ -75,17 +74,7 @@ class UserModel:
         except Exception as e:
             current_app.logger.error(f"Error updating password: {e}")
 
-    # @staticmethod
-    # def update_name(email, new_name):
-    #     """Update the user's name."""
-    #     try:
-    #         current_app.db.users.update_one(
-    #             {'email': email},
-    #             {'$set': {'username': new_name}}  # Update the username field
-    #         )
-    #     except Exception as e:
-    #         current_app.logger.error(f"Error updating name: {e}")
-    
+
     @staticmethod
     def find_by_id(user_id):
         """Find a user by their unique ID."""

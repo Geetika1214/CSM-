@@ -1,26 +1,25 @@
+// src/Components/ProjectDetail.jsx
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Toolbar from "../Components/Toolbar";
-import DescriptionInput from "../Components/DescriptionInput";
-import { FaUpload, FaDownload, FaRocket } from 'react-icons/fa'; // Import icons
+import { FaUpload, FaDownload, FaRocket } from 'react-icons/fa'; 
 
 export const ProjectDetail = () => {
-  const { id } = useParams(); 
-  const navigate = useNavigate(); // Initialize the navigate function
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [description, setDescription] = useState("");
   const [projectName, setProjectName] = useState("");
   const [uploadedFile, setUploadedFile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [fileName, setFileName] = useState(null);
+  const [status, setStatus] = useState(""); 
   const [FileStatusMessage , setFileStatusMessage] = useState(null);
-  const [status, setStatus] = useState(""); // Status for displaying action states
-
-  const token = localStorage.getItem('access_token'); // Get the token from local storage
+  const token = localStorage.getItem('access_token');
 
   const fetchProjectDetails = async () => {
-    console.log("Fetching project details with id:", id);
+    // console.log("Fetching project details with id:", id);
     
     try {
       const response = await axios.get(`http://127.0.0.1:5000/api/project/${id}`, {
@@ -33,11 +32,11 @@ export const ProjectDetail = () => {
         setDescription(response.data.description);
         setProjectName(response.data.title);
         setUploadedFile(response.data.uploadedFile || null);
-        if (response.data.file_path) {
-          const filePathParts = response.data.file_path.split('\\');
-          const file = filePathParts[filePathParts.length - 1];
-          setFileName(file);
-          setFileStatusMessage(`The associated file is: ${file}`);
+        
+        if (response.data.file_path && typeof response.data.file_path === 'string') {
+          const fileName = response.data.file_path.split('\\').pop();
+          setFileName(fileName);
+          setFileStatusMessage(`The associated file is: ${fileName}`);
         } else {
           setFileStatusMessage("No file associated with this project yet. Upload one to get started!");
         }
@@ -54,20 +53,18 @@ export const ProjectDetail = () => {
     fetchProjectDetails();
   }, [id]);
 
-  // const handleDescriptionChange = async (newDescription) => {
-  //   setDescription(newDescription);
-  //   console.log("Updated description:", newDescription); // Log the updated description
-  //   try {
-  //     await axios.put(`http://127.0.0.1:5000/api/project/${id}/description`, 
-  //       { description: newDescription },
-  //       { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }}
-  //     );
-  //     alert("Description updated successfully!");
-  //   } catch (err) {
-  //     console.error("Failed to update description:", err);
-  //     setError("Could not update description. Please try again.");
-  //   }
-  // };
+  const saveDescription = async () => {
+    try {
+      const response = await axios.put(`http://127.0.0.1:5000/api/project/${id}`, 
+        {description},
+        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }}
+      );
+      alert("Description updated successfully!");
+    } catch (error) {
+      console.error("Failed to update description:", error);
+      setError("Could not update description. Please try again.");
+    }
+  };
 
   const handleUploadClick = () => {
     setStatus("Uploading..."); // Set status to uploading
@@ -155,20 +152,35 @@ export const ProjectDetail = () => {
              {projectName}
           </h1>
 
-          <DescriptionInput 
-            description={description} 
-            // setDescription={handleDescriptionChange} 
-          />    
+          <div className="mb-4">
+            <label htmlFor="description" className="block text-gray-700 text-sm font-bold mb-2">
+              Description:
+            </label>
+            <textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-md"
+              rows="4"
+            />
+            {/* <button
+              onClick={saveDescription}
+              className="mt-2 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition"
+            >
+              Update Description
+            </button> */}
+          </div>
+  
 
           <div className="mt-6">
             <h2 className="text-xl font-semibold text-gray-700 mb-2">Workspace</h2>
             <div className="h-64 border border-gray-300 rounded-md flex items-center justify-center text-gray-500">
-              <p>{status || FileStatusMessage}</p>
+              <p>{FileStatusMessage}</p>
             </div>
           </div>
 
           {/* File Upload, Process, and Download Buttons */}
-          <div className="mt-6 flex justify-center gap-4">
+          <div  className="mt-6 flex justify-center gap-4">
             <button
               onClick={handleUploadClick}
               className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
